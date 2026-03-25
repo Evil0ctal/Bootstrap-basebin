@@ -329,10 +329,8 @@ int new_LSServer_RebuildApplicationDatabases()
 		if (access(uicachePath, F_OK) == 0) {
 			pid_t pid=0;
 			int spawnerr = posix_spawn(&pid, uicachePath, NULL, NULL, args, environ);
-			if(spawnerr==0 && pid>0) {
-				int status;
-				waitpid(pid, &status, WEXITED);
-				waitpid(pid, &status, 0);
+			if(spawnerr==0) {
+				wait_for_exit(pid);
 			}
 		}
 	});

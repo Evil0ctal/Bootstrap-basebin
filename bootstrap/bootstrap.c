@@ -543,14 +543,16 @@ static void __attribute__((__constructor__)) bootstrap()
 				"frida-server", //title
 				NULL
 			};
+
 			pid_t pid=0;
 			int spawnerr = posix_spawn_hook(&pid, jbroot(argv[0]), NULL, NULL, argv, environ);
-			SYSLOG("uialert spawn returned %d, pid=%d", spawnerr, pid);
-			if(spawnerr==0 && pid>0) {
-				int status;
-				waitpid(pid, &status, WEXITED);
-				waitpid(pid, &status, 0);
+			if(spawnerr == 0) {
+				int exitcode = wait_for_exit(pid);
+				SYSLOG("uialert spawn returned %d, pid=%d, exitcode=%d", spawnerr, pid, exitcode);
+			} else {
+				SYSLOG("uicache spawn failed: %d, %s", spawnerr, strerror(spawnerr));
 			}
+			
 		}
 	}
 

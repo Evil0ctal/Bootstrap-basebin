@@ -90,7 +90,8 @@ static void __attribute__((__constructor__)) preload()
     
 	if(!found) 
 	{
-		if(strcmp(proc_get_teamid(getpid(),NULL), "T8ALTGMVXN") != 0)
+		char* teamid = proc_get_teamid(getpid(),NULL);
+		if(teamid && strcmp(teamid, "T8ALTGMVXN")!=0)
 		{
 			ASSERT(requireJIT()==0);
 

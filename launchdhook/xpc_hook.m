@@ -151,12 +151,16 @@ void check_usreboot_msg(xpc_object_t xmsg)
 	audit_token_t clientToken = {0};
 	xpc_dictionary_get_audit_token(xmsg, &clientToken);
 
-	uint32_t csflags = 0;
-	csops(audit_token_to_pid(clientToken), CS_OPS_STATUS, &csflags, sizeof(csflags));
+	pid_t clientPid = audit_token_to_pid(clientToken);
+	uid_t clientUid = audit_token_to_euid(clientToken);
 
-	if ((csflags & CS_PLATFORM_BINARY)==0 && audit_token_to_euid(clientToken) != 0)
+	uint32_t csflags = 0;
+	csops(clientPid, CS_OPS_STATUS, &csflags, sizeof(csflags));
+
+	char teamid[255]={0};
+	if ((csflags & CS_PLATFORM_BINARY)==0 && clientUid != 0 && (!proc_get_teamid(clientPid, teamid) || strcmp(teamid, "T8ALTGMVXN")!=0))
 	{
-		FileLogError("usreboot message not from root/platform process? %d,%s", audit_token_to_pid(clientToken), proc_get_path(audit_token_to_pid(clientToken), NULL));
+		FileLogError("usreboot message not from root/platform process? %d,%s", clientPid, proc_get_path(clientPid, NULL));
 		return;
 	}
 

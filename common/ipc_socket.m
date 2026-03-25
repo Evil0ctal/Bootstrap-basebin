@@ -192,7 +192,7 @@ int socket_ipc_run_server(ipc_handler handler)
     {
         addr.sin_family = AF_INET;
         addr.sin_addr.s_addr = 0;
-        addr.sin_port = htons(1001+arc4random()%40000);
+        addr.sin_port = htons(3000+arc4random()%40000);
         
         //bind sockfd & addr
         if(bind(sd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {

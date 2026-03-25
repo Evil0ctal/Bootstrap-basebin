@@ -393,19 +393,7 @@ int execBinary(const char* path, const char** argv)
 	if(ret != 0) {
 		return -1;
 	}
-
-	int status=0;
-    while(waitpid(pid, &status, 0) != -1)
-    {
-        if (WIFSIGNALED(status)) {
-            return 128 + WTERMSIG(status);
-        } else if (WIFEXITED(status)) {
-            return WEXITSTATUS(status);
-        }
-        //keep waiting?return status;
-    };
-
-	return -1;
+	return wait_for_exit(pid);
 }
 
 int spawner(NSString* executablePath)
@@ -1095,15 +1083,11 @@ void registerAll(void) {
 			NSString* bundlePath = [installedApps[bundleID] path];
 			if (verbose) printf(_("registering %s : %s\n"), bundleID.UTF8String, bundlePath.fileSystemRepresentation);
 			
-			pid_t pid;
+			pid_t pid = 0;
 			const char* args[] = {"/basebin/uicache", "-p", rootfs(bundlePath.fileSystemRepresentation), NULL};
 			assert(posix_spawn(&pid, jbroot(args[0]), NULL, NULL, (char*const*)args, environ) == 0);
 
-			int status=0;
-			while(waitpid(pid, &status, 0) != -1) {
-				usleep(100*1000);
-			};
-			if(!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+			if(wait_for_exit(pid) != 0) {
 				fprintf(stderr, _("Error: Failed to register %s\n"), bundlePath.fileSystemRepresentation);
 			}
 		}

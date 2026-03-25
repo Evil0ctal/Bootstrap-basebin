@@ -37,19 +37,7 @@ int execBinary(const char* path, char** argv, char** envp)
 	if(ret != 0) {
 		return -1;
 	}
-
-	int status=0;
-    while(waitpid(pid, &status, 0) != -1)
-    {
-        if (WIFSIGNALED(status)) {
-            return 128 + WTERMSIG(status);
-        } else if (WIFEXITED(status)) {
-            return WEXITSTATUS(status);
-        }
-        //keep waiting?return status;
-    };
-
-	return -1;
+    return wait_for_exit(pid);
 }
 
 void sign_apps() {

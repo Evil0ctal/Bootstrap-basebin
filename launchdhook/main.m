@@ -2,6 +2,7 @@
 #include <kern_memorystatus.h>
 #include <sys/clonefile.h>
 #include <mach-o/dyld.h>
+#include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <xpc/xpc.h>
@@ -556,10 +557,9 @@ int __posix_spawn_hook(pid_t *restrict pidp, const char *restrict path, struct _
 			posix_spawnattr_setflags(&(desc->attrp), flags & ~ROOTHIDE_START_SUSPENDED);
 
 		if((flags & POSIX_SPAWN_START_SUSPENDED) != 0 && (flags & ROOTHIDE_START_SUSPENDED) == 0) {
-			uint32_t csflags = 0;
-			int csret=csops(pid, CS_OPS_STATUS, &csflags, sizeof(csflags));
+			struct statfs sfs={0};
 			//launchd may spawn non-daemon processes with POSIX_SPAWN_START_SUSPENDED at early boot
-			if(csret==0 && (csflags & CS_PLATFORM_BINARY)==0) {
+			if (path && statfs(path, &sfs)==0 && strcmp(sfs.f_mntonname, "/")!=0) {
 				jbdProcessEnableJIT(pid, true);
 			}
 		}
@@ -567,6 +567,46 @@ int __posix_spawn_hook(pid_t *restrict pidp, const char *restrict path, struct _
 
 	if(pidp) *pidp = pid;
 	return ret;
+}
+
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+int (*orig_bind)(int sockfd, const struct sockaddr *addr, socklen_t addrlen)=bind;
+int new_bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
+{
+    if (addr->sa_family == AF_INET && addrlen >= sizeof(struct sockaddr_in)) {
+        struct sockaddr_in addr_in = *(struct sockaddr_in*)addr;
+        in_port_t port = ntohs(addr_in.sin_port);
+        if (port == 0) {
+			int ret = -1;
+			for(port=IPPORT_HIFIRSTAUTO; port<=IPPORT_HILASTAUTO; port++)
+			{
+				addr_in.sin_port = htons(port);
+				ret = orig_bind(sockfd, (struct sockaddr*)&addr_in, addrlen);
+				if(ret==0 || errno!=EADDRINUSE) {
+					break;
+				}
+			}
+			return ret;
+        }
+    } else if (addr->sa_family == AF_INET6 && addrlen >= sizeof(struct sockaddr_in6)) {
+        struct sockaddr_in6 addr_in6 = *(struct sockaddr_in6*)addr;
+        in_port_t port = ntohs(addr_in6.sin6_port);
+        if (port == 0) {
+			int ret = -1;
+			for(port=IPPORT_HIFIRSTAUTO; port<=IPPORT_HILASTAUTO; port++)
+			{
+				addr_in6.sin6_port = htons(port);
+				ret = orig_bind(sockfd, (struct sockaddr*)&addr_in6, addrlen);
+				if(ret==0 || errno!=EADDRINUSE) {
+					break;
+				}
+			}
+			return ret;
+        }
+    }
+    return orig_bind(sockfd, addr, addrlen);
 }
 
 __attribute__((constructor)) static void initializer(void)
@@ -627,3 +667,4 @@ DYLD_INTERPOSE(new_xpc_receive_mach_msg, xpc_receive_mach_msg)
 DYLD_INTERPOSE(new_xpc_pipe_routine_reply, xpc_pipe_routine_reply)
 DYLD_INTERPOSE(new_xpc_dictionary_create_reply, xpc_dictionary_create_reply)
 DYLD_INTERPOSE(new_memorystatus_control, memorystatus_control)
+DYLD_INTERPOSE(new_bind, bind) //fix network issues on iOS16+

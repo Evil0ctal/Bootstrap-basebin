@@ -1,11 +1,13 @@
 #include <stdio.h>
-#include <unistd.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <errno.h>
 #include <spawn.h>
 #include <signal.h>
-#include <mach-o/dyld.h>
+#include <sys/stat.h>
 #include <sys/param.h>
 #include <sys/syslimits.h>
+#include <mach-o/dyld.h>
 
 #include "common.h"
 
@@ -74,7 +76,25 @@ int available_persona_id()
     return 0;
 }
 
-#include <sys/stat.h>
+void wait_and_forward(pid_t pid)
+{
+    while (1) {
+        int status = 0;
+        if (waitpid(pid, &status, 0) == -1) {
+            if (errno == EINTR) {
+                continue;
+            }
+            perror("waitpid");
+            exit(-1);
+        }
+
+        if (WIFEXITED(status)) {
+            exit(WEXITSTATUS(status));
+        } else if (WIFSIGNALED(status)) {
+            kill(getpid(), WTERMSIG(status));
+        }
+    }
+}
 
 void fixsuid()
 {
@@ -126,18 +146,7 @@ void fixsuid()
 
     ASSERT(ret==0 && pid>0);
 
-    int status=0;
-    while(waitpid(pid, &status, 0) != -1)
-    {
-        if (WIFSIGNALED(status)) {
-            kill(getpid(), -WTERMSIG(status));
-        } else if (WIFEXITED(status)) {
-            exit(WEXITSTATUS(status));
-        }
-        //keep waiting?return status;
-    };
-    
-    exit(-1);
+    wait_and_forward(pid);
 }
 
 void runAsRoot(const char* path, char* argv[])
@@ -160,17 +169,6 @@ void runAsRoot(const char* path, char* argv[])
 
     ASSERT(ret==0 && pid>0);
 
-    int status=0;
-    while(waitpid(pid, &status, 0) != -1)
-    {
-        if (WIFSIGNALED(status)) {
-            kill(getpid(), -WTERMSIG(status));
-        } else if (WIFEXITED(status)) {
-            exit(WEXITSTATUS(status));
-        }
-        //keep waiting?return status;
-    };
-    
-    exit(-1);
+    wait_and_forward(pid);
 }
 

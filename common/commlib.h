@@ -36,11 +36,13 @@ int spawn_daemon(NSString* path, NSArray* args, __strong NSString** stdOut, __st
 int spawn_bootstrap_binary(char*const* argv, __strong NSString** stdOut, __strong NSString** stdErr);
 #endif
 
+int requireJIT();
+
 pid_t get_real_ppid();
 
 bool launchctl_support();
 
-int requireJIT();
+int wait_for_exit(pid_t pid);
 
 bool proc_traced(pid_t pid);
 bool proc_debugged(pid_t pid);

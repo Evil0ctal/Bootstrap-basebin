@@ -460,17 +460,7 @@ int spawn_common(const char* path, char*const* argv, char*const* envp, posix_spa
     //wait stderr
     dispatch_semaphore_wait(lock, DISPATCH_TIME_FOREVER);
     
-    int status=0;
-    while(waitpid(pid, &status, 0) != -1)
-    {
-        if (WIFSIGNALED(status)) {
-            return 128 + WTERMSIG(status);
-        } else if (WIFEXITED(status)) {
-            return WEXITSTATUS(status);
-        }
-        //keep waiting?return status;
-    };
-    return -1;
+    return wait_for_exit(pid);
 }
 
 int spawn_binary(const char* path, char*const* argv, char*const* envp, void(^pid_out)(pid_t), void(^std_out)(char*,int), void(^err_out)(char*,int))
@@ -1342,4 +1332,24 @@ bool launchd_exploit_available()
     }
 
     return false;
+}
+
+int wait_for_exit(pid_t pid)
+{
+    while (1)  
+    {
+		int status=0;
+        if (waitpid(pid, &status, 0) == -1) {
+            if (errno == EINTR) {
+                continue;
+            }
+            perror("waitpid");
+            return -1;
+        }
+        if (WIFEXITED(status)) {
+            return WEXITSTATUS(status);
+        } else if (WIFSIGNALED(status)) {
+            return 128 + WTERMSIG(status);
+        }
+    }
 }
