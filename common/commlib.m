@@ -574,7 +574,7 @@ int spawn_daemon(NSString* path, NSArray* args, __strong NSString** stdOut, __st
 
     posix_spawnattr_setflags(&attr, POSIX_SPAWN_SETPGROUP);
 
-    int retval = spawn_common(path.fileSystemRepresentation, argsC, environ, NULL, nil, ^(char* outstr, int length){
+    int retval = spawn_common(path.fileSystemRepresentation, argsC, environ, &attr, nil, ^(char* outstr, int length){
         NSString *str = [[NSString alloc] initWithBytes:outstr length:length encoding:NSASCIIStringEncoding];
         if(stdOut) [outString appendString:str];
     }, ^(char* errstr, int length){
