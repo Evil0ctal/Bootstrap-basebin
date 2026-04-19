@@ -76,6 +76,10 @@ cd roothidehooks
 make clean all
 cd -
 
+cd kexploit
+make clean all
+cd -
+
 cp ./test.sh .build/
 cp ./rebuildApps.sh .build/
 cp ./resignList.plist .build/

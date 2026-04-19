@@ -9,9 +9,9 @@
 #include "dobby.h"
 #include "jbclient.h"
 
-bool os_variant_has_internal_content();
-bool (*orig_os_variant_has_internal_content)();
-bool new_os_variant_has_internal_content()
+bool os_variant_has_internal_content(const char * __unused subsystem);
+bool (*orig_os_variant_has_internal_content)(const char * __unused subsystem);
+bool new_os_variant_has_internal_content(const char * __unused subsystem)
 {
     return true;
 }
@@ -108,7 +108,10 @@ int new_csops_audittoken(pid_t pid, unsigned int  ops, void * useraddr, size_t u
     return ret;
 }
 
-bool os_variant_has_internal_content(const char * __unused subsystem);
+int __sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp, const void *newp, size_t newlen);
+int __sysctl_hook(int *name, u_int namelen, void *oldp, size_t *oldlenp, const void *newp, size_t newlen);
+int __sysctlbyname(const char *name, size_t namelen, void *oldp, size_t *oldlenp, void *newp, size_t newlen);
+int __sysctlbyname_hook(const char *name, size_t namelen, void *oldp, size_t *oldlenp, void *newp, size_t newlen);
 
 void init_platformHook()
 {    
@@ -133,6 +136,14 @@ void init_platformHook()
     DobbyHook(csops, new_csops, (void**)&orig_csops);
     DobbyHook(csops_audittoken, new_csops_audittoken, (void**)&orig_csops_audittoken);
     // DobbyHook(os_variant_has_internal_content, new_os_variant_has_internal_content, (void**)&orig_os_variant_has_internal_content);
+
+    if (__builtin_available(iOS 16.0, *))
+	{
+		void* __sysctl_orig = NULL;
+		void* __sysctlbyname_orig = NULL;
+		DobbyHook(&__sysctl, (void *) __sysctl_hook, &__sysctl_orig);
+		DobbyHook(&__sysctlbyname, (void *) __sysctlbyname_hook, &__sysctlbyname_orig);
+	}
 }
 
 /*
