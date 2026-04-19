@@ -125,3 +125,18 @@ void envbuf_unsetenv(char **envpp[], const char *name)
 		}
 	}
 }
+
+void envbuf_putenv(char **envpp[], const char *env)
+{
+	if (envpp) {
+		char *equalSign = strchr(env, '=');
+		if (equalSign) {
+			size_t nameLen = equalSign - env;
+			char name[nameLen+1];
+			strncpy(name, env, nameLen);
+			name[nameLen] = 0;
+			const char *value = equalSign + 1;
+			envbuf_setenv(envpp, name, value, 1);
+		}
+	}
+}

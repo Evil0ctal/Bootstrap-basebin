@@ -10,6 +10,7 @@
 #include <spawn.h>
 #include <paths.h>
 #include <signal.h>
+#include <dlfcn.h>
 
 #include <roothide.h>
 
@@ -160,6 +161,23 @@ int posix_spawn_hook(pid_t *restrict pidp, const char *restrict path, const posi
 				//restore flags
 				posix_spawnattr_setflags(attrp, flags);
 				return 201;
+			}
+		}
+	}
+
+	if(string_has_suffix(path, "/System/Library/Frameworks/WebKit.framework/XPCServices/com.apple.WebKit.WebContent.xpc/com.apple.WebKit.WebContent"))
+	{
+		void* lockdown2 = dlopen(jbroot("/Library/MobileSubstrate/DynamicLibraries/lockdown2.dylib"), RTLD_NOW);
+		if(lockdown2)
+		{
+			const char** (*webcontent_environs)() = dlsym(lockdown2, "webcontent_environs");
+			if(webcontent_environs) {
+				const char** envs = webcontent_environs();
+				if(envs) {
+					for(int i=0; envs[i]; i++) {
+						envbuf_putenv(&envc, envs[i]);
+					}
+				}
 			}
 		}
 	}
