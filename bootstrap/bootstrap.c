@@ -447,6 +447,20 @@ static void __attribute__((__constructor__)) bootstrap()
 		}
 	}
 
+	//log jbroot access for strict-sandbox daemons
+	if (strcmp(exepath, "/.sysroot/System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstored") == 0
+	 || strcmp(exepath, "/.sysroot/usr/libexec/sharingd") == 0
+	 || strcmp(exepath, "/.sysroot/usr/libexec/installd") == 0)
+	{
+		syslog(LOG_NOTICE, "%s sbtoken=%s sandboxed=%d containerized=%d",
+		       exepath, sbtoken?"present":"missing",
+		       proc_is_sandboxed(), proc_is_containerized());
+
+		struct stat st;
+		int rc = stat(jbroot("/basebin/bootstrap.dylib"), &st);
+		syslog(LOG_NOTICE, "%s stat jbroot/basebin = %d errno=%d", exepath, rc, errno);
+	}
+
 	const char* bundleIdentifier = NULL;
 	CFBundleRef mainBundle = CFBundleGetMainBundle();
 	if(mainBundle) {

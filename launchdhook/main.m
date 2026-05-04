@@ -5,6 +5,7 @@
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+#include <sys/syslog.h>
 #include <xpc/xpc.h>
 #include <sandbox.h>
 #include <libgen.h>
@@ -369,6 +370,16 @@ int new_posix_spawn(pid_t *restrict pidp, const char *restrict path, const posix
 			insertlib = strdup(jbroot("/basebin/bootstrap.dylib"));
 
 			envbuf_setenv(&envc, "__SANDBOX_EXTENSIONS", g_sandbox_extensions_ext, 1);
+
+			//log strict-sandbox daemon spawns
+			if (strcmp(path, "/System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstored") == 0
+			 || strcmp(path, "/usr/libexec/sharingd") == 0
+			 || strcmp(path, "/usr/libexec/installd") == 0)
+			{
+				syslog(LOG_NOTICE, "spawn %s -> %s ext=%s",
+				       path, resigned_path,
+				       g_sandbox_extensions_ext?"set":"null");
+			}
 
 			if (__builtin_available(iOS 16.0, *)) {
 				posix_spawnattr_set_launch_type_np(attrp, 0);

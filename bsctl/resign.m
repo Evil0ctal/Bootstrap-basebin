@@ -6,7 +6,7 @@
 
 #define LOG	printf
 
-int ResignSystemExecutables()
+int ResignSystemExecutables(bool strict_mode)
 {
     NSFileManager* fm = NSFileManager.defaultManager;
 
@@ -15,6 +15,8 @@ int ResignSystemExecutables()
         LOG("Unable to load resign list\n");
         return -1;
     }
+
+    LOG("strict_mode=%d\n", strict_mode);
     //*
     if([fm fileExistsAtPath:RESIGNED_SYSROOT_PATH]) {
         ASSERT([fm removeItemAtPath:RESIGNED_SYSROOT_PATH error:nil]);
@@ -82,7 +84,19 @@ int ResignSystemExecutables()
         }
 
         NSString* stripEntitlementsFile = [NSString stringWithFormat:@"/basebin/entitlements/executables/%@.strip", sourcePath.lastPathComponent];
-        NSString* extraEntitlementsFile = [NSString stringWithFormat:@"/basebin/entitlements/executables/%@.extra", sourcePath.lastPathComponent];
+
+        //prefer .strict.extra when present, else fall back to .extra
+        NSString* legacyExtraFile = [NSString stringWithFormat:@"/basebin/entitlements/executables/%@.extra", sourcePath.lastPathComponent];
+        NSString* strictExtraFile = [NSString stringWithFormat:@"/basebin/entitlements/executables/%@.strict.extra", sourcePath.lastPathComponent];
+
+        NSString* extraEntitlementsFile;
+        if (strict_mode && [fm fileExistsAtPath:jbroot(strictExtraFile)]) {
+            extraEntitlementsFile = strictExtraFile;
+            LOG("  strict variant: %s\n", sourcePath.lastPathComponent.fileSystemRepresentation);
+        } else {
+            extraEntitlementsFile = legacyExtraFile;
+        }
+
         NSMutableArray* args = [NSMutableArray arrayWithArray:@[@"-M", [NSString stringWithFormat:@"-S%@", jbroot(extraEntitlementsFile)], destPath]];
         if([fm fileExistsAtPath:jbroot(stripEntitlementsFile)]) {
             [args addObject:[NSString stringWithFormat:@"--strip=%@", jbroot(stripEntitlementsFile)]];

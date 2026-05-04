@@ -102,6 +102,9 @@ bool machoGetInfo(const char* path, bool* isMachO, bool* isLibrary);
 
 int roothide_config_set_blacklist_enable(bool enabled);
 
+bool roothide_config_get_strict_daemon_sandbox(void);
+int roothide_config_set_strict_daemon_sandbox(bool enabled);
+
 bool checkpatchedexe(const char* executable_path);
 
 bool is_same_file(const char* path1, const char* path2);

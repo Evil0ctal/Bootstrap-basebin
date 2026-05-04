@@ -111,7 +111,33 @@ int main(int argc, char *argv[], char *envp[])
 		}
 		else if(strcmp(argv[1], "resign") == 0)
 		{
-			return ResignSystemExecutables();
+			//resign [--strict|--legacy]; no flag = read config
+			bool strict_mode;
+			if (argc >= 3 && strcmp(argv[2], "--strict") == 0) {
+				strict_mode = true;
+			} else if (argc >= 3 && strcmp(argv[2], "--legacy") == 0) {
+				strict_mode = false;
+			} else {
+				strict_mode = roothide_config_get_strict_daemon_sandbox();
+			}
+			return ResignSystemExecutables(strict_mode);
+		}
+		else if(strcmp(argv[1], "config") == 0)
+		{
+			//config strict-daemon-sandbox <on|off|status>
+			if (argc >= 4 && strcmp(argv[2], "strict-daemon-sandbox") == 0) {
+				if (strcmp(argv[3], "on") == 0) {
+					return roothide_config_set_strict_daemon_sandbox(true);
+				} else if (strcmp(argv[3], "off") == 0) {
+					return roothide_config_set_strict_daemon_sandbox(false);
+				} else if (strcmp(argv[3], "status") == 0) {
+					printf("strictDaemonSandbox=%s\n",
+					       roothide_config_get_strict_daemon_sandbox() ? "on" : "off");
+					return 0;
+				}
+			}
+			printf("usage: bsctl config strict-daemon-sandbox <on|off|status>\n");
+			return -1;
 		}
 	}
 

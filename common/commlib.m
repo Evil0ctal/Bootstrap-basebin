@@ -1212,6 +1212,29 @@ const char* generate_sandbox_extensions(bool ext)
     [extensionString appendString:@"|"];
     [extensionString appendString:[NSString stringWithUTF8String:sandbox_extension_issue_mach("com.apple.security.exception.mach-lookup.global-name", service_name, 0, 0)]];
 
+    //extra extensions for strict-sandbox daemons; skip when toggle off
+    if (ext && roothide_config_get_strict_daemon_sandbox()) {
+        char* token;
+
+        token = sandbox_extension_issue_file("com.apple.app-sandbox.read-write", jbrootbase, 0);
+        if (token) {
+            [extensionString appendString:@"|"];
+            [extensionString appendString:[NSString stringWithUTF8String:token]];
+        }
+
+        token = sandbox_extension_issue_generic("com.apple.app-sandbox.posix-ipc", 0);
+        if (token) {
+            [extensionString appendString:@"|"];
+            [extensionString appendString:[NSString stringWithUTF8String:token]];
+        }
+
+        token = sandbox_extension_issue_generic("com.apple.app-sandbox.shm", 0);
+        if (token) {
+            [extensionString appendString:@"|"];
+            [extensionString appendString:[NSString stringWithUTF8String:token]];
+        }
+    }
+
     return strdup(extensionString.UTF8String);
 }
 
@@ -1231,6 +1254,39 @@ int roothide_config_set_blacklist_enable(bool enabled)
     NSMutableDictionary* defaults = [NSMutableDictionary dictionaryWithContentsOfFile:configFilePath];
     if(!defaults) defaults = [[NSMutableDictionary alloc] init];
     [defaults setValue:@(!enabled) forKey:@"blacklistDisabled"];
+    if(![defaults writeToFile:configFilePath atomically:YES]) {
+        SYSERR("Failed to write config file: %s", configFilePath.fileSystemRepresentation);
+        return -1;
+    }
+    return 0;
+}
+
+bool roothide_config_get_strict_daemon_sandbox(void)
+{
+    NSString *configFilePath = jbroot(@"/var/mobile/Library/RootHide/RootHideConfig.plist");
+    NSDictionary* defaults = [NSDictionary dictionaryWithContentsOfFile:configFilePath];
+    if (!defaults) return false;
+    NSNumber* val = defaults[@"strictDaemonSandbox"];
+    if (![val isKindOfClass:[NSNumber class]]) return false;
+    return val.boolValue;
+}
+
+int roothide_config_set_strict_daemon_sandbox(bool enabled)
+{
+    NSString* roothideDir = jbroot(@"/var/mobile/Library/RootHide");
+    if(![NSFileManager.defaultManager fileExistsAtPath:roothideDir]) {
+        NSDictionary* attr = @{NSFilePosixPermissions:@(0755), NSFileOwnerAccountID:@(501), NSFileGroupOwnerAccountID:@(501)};
+        if(![NSFileManager.defaultManager createDirectoryAtPath:roothideDir withIntermediateDirectories:YES attributes:attr error:nil])
+        {
+            SYSERR("Failed to create directory: %s", roothideDir.fileSystemRepresentation);
+            return -1;
+        }
+    }
+
+    NSString *configFilePath = jbroot(@"/var/mobile/Library/RootHide/RootHideConfig.plist");
+    NSMutableDictionary* defaults = [NSMutableDictionary dictionaryWithContentsOfFile:configFilePath];
+    if(!defaults) defaults = [[NSMutableDictionary alloc] init];
+    [defaults setValue:@(enabled) forKey:@"strictDaemonSandbox"];
     if(![defaults writeToFile:configFilePath atomically:YES]) {
         SYSERR("Failed to write config file: %s", configFilePath.fileSystemRepresentation);
         return -1;
